@@ -1,0 +1,131 @@
+@page "/tickets"
+@rendermode InteractiveServer
+@using TicketTracker.Models
+@using TicketTracker.Services
+@inject TicketService TicketService
+
+<PageTitle>Tickets</PageTitle>
+
+<h1>Tickets</h1>
+<p class="text-muted">@openCount open · @resolvedCount resolved</p>
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">New ticket</h5>
+
+                <EditForm Model="newTicket" OnValidSubmit="CreateTicket">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label" for="title">Title</label>
+                        <InputText id="title" class="form-control" @bind-Value="newTicket.Title" />
+                        <ValidationMessage For="() => newTicket.Title" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="description">Description</label>
+                        <InputTextArea id="description" class="form-control" rows="3" @bind-Value="newTicket.Description" />
+                        <ValidationMessage For="() => newTicket.Description" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="assignedTo">Assigned to</label>
+                        <InputText id="assignedTo" class="form-control" @bind-Value="newTicket.AssignedTo" />
+                        <ValidationMessage For="() => newTicket.AssignedTo" />
+                    </div>
+
+                    <button class="btn btn-primary" type="submit">Create ticket</button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 4rem;">#</th>
+                    <th>Title</th>
+                    <th style="width: 9rem;">Assigned to</th>
+                    <th style="width: 10rem;">Created</th>
+                    <th style="width: 11rem;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (tickets.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No tickets yet.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var ticket in tickets)
+                    {
+                        <tr>
+                            <td>@ticket.Id</td>
+                            <td>
+                                <div>@ticket.Title</div>
+                                @if (!string.IsNullOrWhiteSpace(ticket.Description))
+                                {
+                                    <small class="text-muted">@ticket.Description</small>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(ticket.AssignedTo) ? "—" : ticket.AssignedTo)</td>
+                            <td>@ticket.CreatedAt.ToString("MMM d, h:mm tt")</td>
+                            <td>
+                                <select class="form-select form-select-sm"
+                                        @bind:get="ticket.Status"
+                                        @bind:set="value => ChangeStatus(ticket.Id, value)">
+                                    @foreach (var status in Enum.GetValues<TicketStatus>())
+                                    {
+                                        <option value="@status">@Label(status)</option>
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private Ticket newTicket = new();
+    private IReadOnlyList<Ticket> tickets = Array.Empty<Ticket>();
+
+    private int openCount => tickets.Count(t => t.Status != TicketStatus.Resolved);
+    private int resolvedCount => tickets.Count(t => t.Status == TicketStatus.Resolved);
+
+    protected override void OnInitialized()
+    {
+        Refresh();
+    }
+
+    private void CreateTicket()
+    {
+        TicketService.Add(newTicket);
+        newTicket = new Ticket();
+        Refresh();
+    }
+
+    private void ChangeStatus(int id, TicketStatus status)
+    {
+        TicketService.UpdateStatus(id, status);
+        Refresh();
+    }
+
+    private void Refresh()
+    {
+        tickets = TicketService.GetAll();
+    }
+
+    private static string Label(TicketStatus status) => status switch
+    {
+        TicketStatus.InProgress => "In Progress",
+        _ => status.ToString()
+    };
+}

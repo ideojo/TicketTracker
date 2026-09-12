@@ -1,10 +1,14 @@
 using TicketTracker.Components;
+using TicketTracker.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// One shared TicketService for the whole app.
+builder.Services.AddSingleton<TicketService>();
 
 var app = builder.Build();
 
